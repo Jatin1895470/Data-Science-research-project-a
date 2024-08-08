@@ -1,0 +1,82 @@
+---
+title: "cocl"
+author: "Jatin Vats"
+date: "2024-06-23"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# Load necessary libraries
+library(dplyr)
+library(readr)
+
+# Read the data from the text files
+device_data <- read.table("DEVICE2022.txt", header = TRUE, sep = "|", stringsAsFactors = FALSE, fill = TRUE, quote = "")
+foitext_data <- read.table("foitext2022.txt", header = TRUE, sep = "|", stringsAsFactors = FALSE, fill = TRUE, quote = "")
+mdrfoi_data <- read.table("mdrfoiThru2023.txt", header = TRUE, sep = "|", stringsAsFactors = FALSE, fill = TRUE, quote = "")
+```
+
+```{r}
+
+```
+
+```{r}
+# Convert MDR_REPORT_KEY columns to character type for all data frames
+device_data$MDR_REPORT_KEY <- as.character(device_data$MDR_REPORT_KEY)
+foitext_data$MDR_REPORT_KEY <- as.character(foitext_data$MDR_REPORT_KEY)
+mdrfoi_data$MDR_REPORT_KEY <- as.character(mdrfoi_data$MDR_REPORT_KEY)
+
+# Filter the data from DEVICE2023.txt for GENERIC_NAME == "COCHLEAR IMPLANT"
+filtered_device_data <- device_data %>%
+  filter(GENERIC_NAME == "COCHLEAR IMPLANT")
+
+# Get the unique MDR_REPORT_KEY values from the filtered device data
+mdr_keys <- filtered_device_data$MDR_REPORT_KEY
+
+# Filter the data from foitext2023.txt and mdrfoiThru2023.txt based on the MDR_REPORT_KEY
+filtered_foitext_data <- foitext_data %>%
+  filter(MDR_REPORT_KEY %in% mdr_keys)
+
+filtered_mdrfoi_data <- mdrfoi_data %>%
+  filter(MDR_REPORT_KEY %in% mdr_keys)
+
+# Perform the many-to-one join between filtered_device_data and filtered_foitext_data
+joined_device_foitext <- filtered_device_data %>%
+  inner_join(filtered_foitext_data, by = "MDR_REPORT_KEY")
+
+
+```
+
+```{r}
+# List of columns to remove
+columns_to_remove <- c("DEVICE_EVENT_KEY", "IMPLANT_FLAG", "DATE_REMOVED_FLAG",
+                       "MANUFACTURER_D_ADDRESS_2", "MANUFACTURER_D_ZIP_CODE_EXT",
+                       "OTHER_ID_NUMBER", "DATE_REPORT")
+
+# Remove columns from joined_device_foitext
+joined_device_foitext <- joined_device_foitext %>%
+  select(-one_of(columns_to_remove))
+
+# Now joined_device_foitext has the specified columns removed
+
+head(joined_device_foitext)
+```
+
+```{r}
+#join the resulting data with filtered_mdrfoi_data
+final_joined_data <- joined_device_foitext %>%
+  left_join(filtered_mdrfoi_data, by = "MDR_REPORT_KEY")
+
+# Display the first few rows of the final joined data
+head(final_joined_data)
+```
+
+```{r}
+# Write the merged data to a new .txt file with UTF-8 encoding
+write.table(final_joined_data, "device2022.txt", sep = "|", row.names = FALSE, quote = FALSE, fileEncoding = "UTF-8")
+```
+
